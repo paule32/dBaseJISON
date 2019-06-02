@@ -1,0 +1,266 @@
+// ------------------------------------------------------
+// dBase4Web 1.0
+// (c) 2019 Jens Kallup
+// all rights reserved.
+//
+// ------------------------------------------------------
+%{
+var cmd_line = 0;
+var goto_BRL = 0;
+
+var parameter_property_array = [ ];
+var tmp_array = [ ];
+
+%}
+
+%left '+' '-'
+%left '*' '/'
+%left '^'
+%left UMINUS
+
+%start program
+
+%%
+
+program
+    : /* empty */
+    | lstmt program
+    | ENDOFFILE
+    ;
+
+lstmt
+    : parameter_stmt
+    | local_stmt
+    | print_stmt
+    | if_stmt
+    | if_stmt_else
+    | if_stmt_endif
+    | conbody
+    | assign_stmt
+    | class_stmt
+    ;
+
+print_stmt
+    : NUMBER {
+        var count = ++cmd_line;
+        tmp_array = {
+            type : "<print>",
+            cmdline: count,
+            subtype: "number",
+            value: $1,
+            comment: "print a number"
+        };
+
+        dbase_ast.push(tmp_array);
+    }
+    ;
+
+parameter_stmt
+    : PARAMETER parameter_list {
+        var count = ++cmd_line;
+        tmp_array = {
+            type   : "<parameter>",
+            cmdline: count,
+            list   : [ ],
+            cexec  : "true",
+            comment: "a parameter definition/list"
+        };
+
+        tmp_array.list = [...parameter_property_array];
+        dbase_ast.push(tmp_array);
+        console.log(tmp_array);
+
+        parameter_property_array.length = [];
+    }
+    ;
+parameter_list
+    : object_id {
+        var tmp_txt = $1;
+        tmp_array = {
+            name   : tmp_txt,
+            type   : "bool",
+            value  : "true",
+            comment: "a list property"
+        };
+        parameter_property_array.push(tmp_array);
+    }
+    | parameter_list COMMA parameter_list
+    ;
+
+local_stmt
+    : LOCAL local_list
+    ;
+local_list
+    : id {
+        var count = ++cmd_line;
+        dbase_ast.push({
+            type   : "<local>",
+            cmdline: count,
+            cexec  : "true",
+            value  : "$1",
+            comment: "a local definition/list"
+        });
+    }
+    | local_list COMMA local_list
+    ;
+
+if_stmt
+    : IF LBRACE cond RBRACE {
+        ++cmd_line;
+        ++goto_BRL;
+        dbase_ast.push({
+            type      : "<ifstmt>",
+            cmdline   : cmd_line,
+            goto_endif: goto_BRL,
+            cexec     : "true",
+            value     : "true"
+        });
+    }
+    ;
+
+if_stmt_endif
+    : ENDIF {
+        ++cmd_line;
+        --goto_BRL;
+        dbase_ast.push({
+            type      : "<ifstmt_endif>",
+            cmdline   : cmd_line,
+            goto_endif: goto_BRL,
+            cexec     : "true",
+            value     : "true"
+        });
+    }
+    ;
+
+if_stmt_else
+    : ELSE {
+        var count = ++cmd_line;
+        dbase_ast.push({
+            type   : "<ifstmt_else>",
+            cmdline: count,
+            cexec  : "true",
+            value  : "true"
+        });
+    }
+    ;
+
+assign_stmt
+    : object_id ASSIGN FALSE { }
+    | object_id ASSIGN TRUE  { }
+    | object_id ASSIGN NEW object_id LBRACE RBRACE {
+        var count = ++cmd_line;
+        dbase_ast.push({
+            type      : "<assign_new>",
+            cmdline   : count,
+            cexec     : "true",
+            value     : "true",
+            object_dst: "$1",
+            object_src: "$4",
+            comment   : "assign new variable"
+        });
+    }
+    ;
+
+class_stmt
+    : CLASS object_id OF object_id   classbody ENDCLASS {
+        var count = ++cmd_line;
+        dbase_ast.push({
+            type      : "<class>",
+            cmdline   : count,
+            cexec     : "true",
+            value     : "true",
+            object_dst: "$2",
+            object_src: "$4",
+            comment   : "a class def"
+        });
+    }
+    ;
+
+
+id   : ID        { $0 = yytext; } ;
+object_id
+    : id {
+        var  tmp_id = yytext;
+        $0 = tmp_id;
+    }
+    | id DOT id
+    ;
+
+comma : COMMA ;
+dot   : DOT   ;
+
+classbody
+    : class_stmt
+    | if_stmt
+    | /* empty */
+    ;
+
+cond
+    : object_id {
+        var count = ++cmd_line;
+        dbase_ast.push({
+            type      : "<condition>",
+            cmdline   : count,
+            goto_Bcond: function ()  {
+                return check_code($1);
+            },
+            cexec     : "true",
+            value     : "$1",
+            object_src: "$1",
+            comment   : "a condition"
+        });
+    }
+    ;
+
+conbody
+    : conbody_stmt conbody
+    | /* empty */
+    ;
+conbody_stmt
+    : object_id LBRACE RBRACE {
+        var count = ++cmd_line;
+        dbase_ast.push({
+            type      : "<oo_funcall>",
+            cmdline   : count,
+            cexec     : "true",
+            value     : "true",
+            object_src: "$1",
+            comment   : "A FunCall: $1"
+        });
+    }
+    | object_id ASSIGN FALSE {
+        var count = ++cmd_line;
+        dbase_ast.push({
+            type      : "<oo_assign>",
+            cmdline   : count,
+            cexec     : "true",
+            value     : "false",
+            object_src: "$1",
+            comment   : "false bool assign: $1"
+        });
+    }
+    | object_id ASSIGN TRUE {
+        var count = ++cmd_line;
+        dbase_ast.push({
+            type      : "<oo_assign>",
+            cmdline   : count,
+            cexec     : "true",
+            value     : "true",
+            object_src: "$1",
+            comment   : "true bool assign: $1"
+        });
+    }
+    | object_id ASSIGN NUMBER {
+        var count = ++cmd_line;
+        dbase_ast.push({
+            type      : "<oo_assign>",
+            cmdline   : count,
+            cexec     : "true",
+            value     : "true",
+            object_src: "$1",
+            comment   : "assign oo num: $1"
+        });
+    }
+    ;
+
+%%

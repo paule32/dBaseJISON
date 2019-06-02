@@ -1,0 +1,72 @@
+%option caseless
+
+digit    [0-9]*
+id       [a-zA-Z]+[a-zA-Z0-9_]*
+
+%%
+
+"//".*          { count(0); return ""; }
+"&&".*          { count(0); return ""; }
+"**".*          { count(0); return ""; }
+
+"/*".*"*/"      { count(0); return ""; }
+
+"=="            { count(0); return "EQUAL";     }
+"!="            { count(0); return "NOTEQUAL";  }
+"<="            { count(0); return "LESSEQUAL"; }
+"=>"            { count(0); return "EQUALMORE"; }
+
+"<"             { count(0); return "SMALLER"; }
+">"             { count(0); return "GREATER"; }
+
+"="             { count(0); return "ASSIGN" }
+
+"+"             { count(0); return "ADD"; }
+"-"             { count(0); return "SUB"; }
+"*"             { count(0); return "MUL"; }
+"/"             { count(0); return "DIV"; }
+
+"("             { count(0); return "LBRACE"; }
+")"             { count(0); return "RBRACE"; }
+
+","             { count(0); return "COMMA"; }
+"."             { count(0); return "DOT";   }
+
+[cC][lL][aA][sS][sS]                    { count(0); return "CLASS";     }
+[eE][lL][sS][eE]                        { count(0); return "ELSE";      }
+[eE][nN][dD][cC][lL][aA][sS][sS]        { count(0); return "ENDCLASS";  }
+[eE][nN][dD][iI][fF]                    { count(0); return "ENDIF";     }
+[fF][aA][lL][sS][eE]                    { count(0); return "FALSE";     }
+[iI][fF]                                { count(0); return "IF";        }
+[lL][oO][cC][aA][lL]                    { count(0); return "LOCAL";     }
+[nN][eE][wW]                            { count(0); return "NEW";       }
+[oO][fF]                                { count(0); return "OF";        }
+[pP][aA][rR][aA][mM][eE][tT][eE][rR]    { count(0); return "PARAMETER"; }
+[tT][rR][uU][eE]                        { count(0); return "TRUE";      }
+
+{id}      { count(); return "ID"; }
+
+[ \t]*    { count(); return ""; }
+[\r\n]*   { count(); return ""; }
+
+<<EOF>>   { return "ENDOFFILE"; }
+
+%%
+
+function count(n)
+{
+//    var s = yytext;
+//    for (let idx = 0; idx < yytext.length; ++idx) {
+//        alert(/\n*/.test(s));
+//    }
+
+/*
+    if (nl > 0) {
+        ++line_row;
+          line_col = 1;
+    }
+    else {
+        line_col += yytext.length;
+    }
+*/
+}
